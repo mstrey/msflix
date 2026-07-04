@@ -24,7 +24,7 @@ services:
       - "traefik.docker.network=frontend"
       - "traefik.http.services.${SERVICE}.loadbalancer.server.port=8096"
       - "traefik.http.routers.${SERVICE}.rule=Host(`${SERVICE}.${DOMAIN}`)"
-      - "traefik.http.routers.${SERVICE}.entrypoints=web"      
+      - "traefik.http.routers.${SERVICE}.entrypoints=web"    
     healthcheck:
       test: ["CMD", "curl", "-fsSL", "http://localhost:8096/health"]
       interval: 30s
@@ -41,10 +41,19 @@ services:
       - WEBUI_PORT=8080
     volumes:
       - ${BIT_CONFIG}/qbittorrent:/config
-      - ${STORAGE_RAIZ}/downloads:/data/downloads
+      - /mnt/storage/downloads:/data/downloads
+    ports:
+      - "8081:8080"
     networks:
       - backend
+      - frontend
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=frontend"
+      - "traefik.http.routers.qbittorrent.rule=Host(`qbittorrent-tst.strey.net.br`)"
+      - "traefik.http.routers.qbittorrent.entrypoints=web"
+      - "traefik.http.services.qbittorrent.loadbalancer.server.port=8080"
     healthcheck:
       test: ["CMD", "curl", "-fsSL", "http://localhost:8080/"]
       interval: 30s
