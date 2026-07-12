@@ -19,6 +19,10 @@ services:
       - ${JF_CONFIG}:/config
       - ${STORAGE_TVSHOWS}:/data/tvshows
       - ${STORAGE_MOVIES}:/data/movies
+      - ${STORAGE_DOC_MOVIES}:/data/documentaries/doc_movies
+      - ${STORAGE_DOC_TVSHOWS}:/data/documentaries/doc_tvshows
+    ports:
+      - "8096:8096"
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=frontend"
@@ -69,6 +73,8 @@ services:
       - TZ=America/Sao_Paulo
     volumes:
       - ${PROWLAR_CONFIG}/prowlarr:/config
+    ports:
+      - "9696:9696"
     networks:
       - backend
     restart: unless-stopped
@@ -88,6 +94,8 @@ services:
     volumes:
       - ${RADARR_CONFIG}/radarr:/config
       - ${STORAGE_RAIZ}:/data
+    ports:
+      - "7878:7878"
     networks:
       - backend
     restart: unless-stopped
@@ -112,6 +120,8 @@ services:
     volumes:
       - ${SONARR_CONFIG}/sonarr:/config
       - ${STORAGE_RAIZ}:/data
+    ports:
+      - "8989:8989"
     networks:
       - backend
     restart: unless-stopped
@@ -136,6 +146,8 @@ services:
     volumes:
       - ${BAZARR_CONFIG}/bazarr:/config
       - ${STORAGE_RAIZ}:/data
+    ports:
+      - "6767:6767"
     networks:
       - backend
     restart: unless-stopped
@@ -157,6 +169,8 @@ services:
       - TZ=America/Sao_Paulo
     volumes:
       - ${JELLYSEERR_CONFIG}/jellyseerr:/app/config
+    ports:
+      - "5055:5055"
     networks:
       - frontend
       - backend
