@@ -34,6 +34,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3    
+    deploy:
+      resources:
+        limits:
+          cpus: '2.00'
+          memory: 1500M
 
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
@@ -45,7 +50,7 @@ services:
       - WEBUI_PORT=8080
     volumes:
       - ${BIT_CONFIG}/qbittorrent:/config
-      - /mnt/storage/downloads:/data/downloads
+      - ${STORAGE_RAIZ}/downloads:/data/downloads
     ports:
       - "8081:8080"
     networks:
@@ -55,14 +60,19 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=frontend"
-      - "traefik.http.routers.qbittorrent.rule=Host(`qbittorrent-tst.strey.net.br`)"
-      - "traefik.http.routers.qbittorrent.entrypoints=web"
-      - "traefik.http.services.qbittorrent.loadbalancer.server.port=8080"
+      - "traefik.http.services.${BIT_SERVICE}.loadbalancer.server.port=8080"
+      - "traefik.http.routers.${BIT_SERVICE}.rule=Host(`${BIT_SERVICE}.${DOMAIN}`)"
+      - "traefik.http.routers.${BIT_SERVICE}.entrypoints=web"
     healthcheck:
       test: ["CMD", "curl", "-fsSL", "http://localhost:8080/"]
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+       resources:
+        limits:
+          cpus: '1.00'
+          memory: 1024M
 
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
