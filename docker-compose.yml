@@ -19,17 +19,24 @@ services:
       - ${JF_CONFIG}:/config
       - ${STORAGE_TVSHOWS}:/data/tvshows
       - ${STORAGE_MOVIES}:/data/movies
+    ports:
+      - "8096:8096"
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=frontend"
       - "traefik.http.services.${SERVICE}.loadbalancer.server.port=8096"
       - "traefik.http.routers.${SERVICE}.rule=Host(`${SERVICE}.${DOMAIN}`)"
-      - "traefik.http.routers.${SERVICE}.entrypoints=web"      
+      - "traefik.http.routers.${SERVICE}.entrypoints=web"    
     healthcheck:
       test: ["CMD", "curl", "-fsSL", "http://localhost:8096/health"]
       interval: 30s
       timeout: 10s
       retries: 3    
+    deploy:
+      resources:
+        limits:
+          cpus: '2.00'
+          memory: 1500M
 
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
@@ -42,14 +49,30 @@ services:
     volumes:
       - ${BIT_CONFIG}/qbittorrent:/config
       - ${STORAGE_RAIZ}/downloads:/data/downloads
+    ports:
+      - "8081:8080"
+      - "6881:6881/tcp"
+      - "6881:6881/udp"
     networks:
       - backend
+      - frontend
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=frontend"
+      - "traefik.http.services.${BIT_SERVICE}.loadbalancer.server.port=8080"
+      - "traefik.http.routers.${BIT_SERVICE}.rule=Host(`${BIT_SERVICE}.${DOMAIN}`)"
+      - "traefik.http.routers.${BIT_SERVICE}.entrypoints=web"
     healthcheck:
       test: ["CMD", "curl", "-fsSL", "http://localhost:8080/"]
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+       resources:
+        limits:
+          cpus: '1.00'
+          memory: 1024M
 
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
@@ -60,9 +83,18 @@ services:
       - TZ=America/Sao_Paulo
     volumes:
       - ${PROWLAR_CONFIG}/prowlarr:/config
+    ports:
+      - "9696:9696"
     networks:
       - backend
+      - frontend
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=frontend"
+      - "traefik.http.services.${PROWLARR_SERVICE}.loadbalancer.server.port=9696"
+      - "traefik.http.routers.${PROWLARR_SERVICE}.rule=Host(`${PROWLARR_SERVICE}.${DOMAIN}`)"
+      - "traefik.http.routers.${PROWLARR_SERVICE}.entrypoints=web"
     healthcheck:
       test: ["CMD", "curl", "-fsSL", "http://localhost:9696/ping"]
       interval: 30s
@@ -79,19 +111,33 @@ services:
     volumes:
       - ${RADARR_CONFIG}/radarr:/config
       - ${STORAGE_RAIZ}:/data
+    ports:
+      - "7878:7878"
     networks:
       - backend
+      - frontend
     restart: unless-stopped
     depends_on:
       qbittorrent:
         condition: service_healthy
       prowlarr:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=frontend"
+      - "traefik.http.services.${RADARR_SERVICE}.loadbalancer.server.port=7878"
+      - "traefik.http.routers.${RADARR_SERVICE}.rule=Host(`${RADARR_SERVICE}.${DOMAIN}`)"
+      - "traefik.http.routers.${RADARR_SERVICE}.entrypoints=web"
     healthcheck:
       test: ["CMD", "curl", "-fsSL", "http://localhost:7878/ping"]
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
 
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
@@ -103,8 +149,17 @@ services:
     volumes:
       - ${SONARR_CONFIG}/sonarr:/config
       - ${STORAGE_RAIZ}:/data
+    ports:
+      - "8989:8989"
     networks:
       - backend
+      - frontend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=frontend"
+      - "traefik.http.services.${SONARR_SERVICE}.loadbalancer.server.port=8989"
+      - "traefik.http.routers.${SONARR_SERVICE}.rule=Host(`${SONARR_SERVICE}.${DOMAIN}`)"
+      - "traefik.http.routers.${SONARR_SERVICE}.entrypoints=web"
     restart: unless-stopped
     depends_on:
       qbittorrent:
@@ -116,6 +171,54 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+  tdarr:
+      image: ghcr.io/haveagitgat/tdarr:latest
+      container_name: tdarr
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=America/Sao_Paulo
+        - UMASK_SET=002
+        - serverIP=0.0.0.0
+        - serverPort=8266
+        - webUIPort=8265
+        - internalNode=true
+        - inContainer=true
+      volumes:
+        - ${TDARR_CONFIG}/tdarr/server:/app/server
+        - ${TDARR_CONFIG}/tdarr/configs:/app/configs
+        - ${TDARR_CONFIG}/tdarr/logs:/app/logs
+        - ${STORAGE_RAIZ}:/data
+        - ${TDARR_CONFIG}/tdarr/temp:/temp
+      ports:
+        - "8265:8265"
+        - "8266:8266"
+      networks:
+        - backend
+        - frontend
+      restart: unless-stopped
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=frontend"
+        - "traefik.http.services.${TDARR_SERVICE}.loadbalancer.server.port=8265"
+        - "traefik.http.routers.${TDARR_SERVICE}.rule=Host(`${TDARR_SERVICE}.${DOMAIN}`)"
+        - "traefik.http.routers.${TDARR_SERVICE}.entrypoints=web"
+      healthcheck:
+        test: ["CMD", "curl", "-fsSL", "http://localhost:8265/"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+      deploy:
+        resources:
+          limits:
+            cpus: '1.00'
+            memory: 1024M
 
   bazarr:
     image: lscr.io/linuxserver/bazarr:latest
@@ -127,19 +230,33 @@ services:
     volumes:
       - ${BAZARR_CONFIG}/bazarr:/config
       - ${STORAGE_RAIZ}:/data
+    ports:
+      - "6767:6767"
     networks:
       - backend
+      - frontend
     restart: unless-stopped
     depends_on:
       radarr:
         condition: service_healthy
       sonarr:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=frontend"
+      - "traefik.http.services.${BAZARR_SERVICE}.loadbalancer.server.port=6767"
+      - "traefik.http.routers.${BAZARR_SERVICE}.rule=Host(`${BAZARR_SERVICE}.${DOMAIN}`)"
+      - "traefik.http.routers.${BAZARR_SERVICE}.entrypoints=web"
     healthcheck:
       test: ["CMD", "curl", "-fsSL", "http://localhost:6767/ping"]
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
 
   jellyseerr:
     image: fallenbagel/jellyseerr:latest
@@ -148,6 +265,8 @@ services:
       - TZ=America/Sao_Paulo
     volumes:
       - ${JELLYSEERR_CONFIG}/jellyseerr:/app/config
+    ports:
+      - "5055:5055"
     networks:
       - frontend
       - backend
@@ -168,3 +287,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
